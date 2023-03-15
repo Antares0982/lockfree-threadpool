@@ -11,13 +11,17 @@ add_library(common INTERFACE)
 file(GLOB testpath ./src/*.cpp)
 
 target_compile_options(common INTERFACE -Wall -Werror=return-type)
+
 if (CMAKE_BUILD_TYPE MATCHES ".*Rel.*")
     target_compile_options(common INTERFACE -O3)
 else ()
     target_compile_options(common INTERFACE -gdwarf-4)
 endif ()
-target_compile_options(common INTERFACE -pthread)
-target_link_libraries(common INTERFACE pthread)
+
+if (NOT WIN32)
+    target_compile_options(common INTERFACE -pthread)
+    target_link_libraries(common INTERFACE pthread)
+endif ()
 ############################################################################
 set(BUILD_TARGET lockfree_threadpool)
 add_executable(${BUILD_TARGET} ${testpath})
