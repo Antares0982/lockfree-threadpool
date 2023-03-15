@@ -8,29 +8,31 @@
 #include <atomic>
 #include <functional>
 
+namespace Antares{
 
-class LockfreeQueue {
-    void *queueWrappingPointer;
-    std::atomic<size_t> _counter;
+    class LockfreeQueue {
+        void *queueWrappingPointer;
+        std::atomic<size_t> _counter;
 
-public:
-    LockfreeQueue();
+    public:
+        LockfreeQueue();
 
-    LockfreeQueue(const LockfreeQueue &) = delete;
+        LockfreeQueue(const LockfreeQueue &) = delete;
 
-    LockfreeQueue(LockfreeQueue &&) = delete;
+        LockfreeQueue(LockfreeQueue &&) = delete;
 
-    ~LockfreeQueue();
+        ~LockfreeQueue();
 
-    void push(std::function<void()> &&func);
+        void push(std::function<void()> &&func);
 
-    bool pop(std::function<void()> &store);
+        bool pop(std::function<void()> &store);
 
-    /// may not be accurate!
-    [[nodiscard]] size_t size() const { return _counter.load(std::memory_order_relaxed); }
+        /// may not be accurate!
+        [[nodiscard]] size_t size() const { return _counter.load(std::memory_order_relaxed); }
 
-    [[nodiscard]] bool empty() const { return size() == 0; }
-};
+        [[nodiscard]] bool empty() const { return size() == 0; }
+    };
 
+}
 
 #endif //TESTPROJECT_LOCKFREEQUEUE_H

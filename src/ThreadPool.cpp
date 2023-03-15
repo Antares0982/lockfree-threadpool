@@ -70,12 +70,9 @@ namespace Antares {
             task_available_cv.wait(tasks_lock, [this] { return !tasks.empty() || !running; });
             tasks_lock.unlock();
             if (!paused) {
-                // task = std::move(tasks.front());
                 auto popresult = tasks.pop(task);
-                //tasks_lock.unlock();
                 if (!popresult) continue;
                 task();
-                //tasks_lock.lock();
                 --tasks_total;
                 if (waiting)
                     task_done_cv.notify_one();

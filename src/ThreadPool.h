@@ -12,13 +12,30 @@
 #include "LockfreeQueue.h"
 #include "Allocator.h"
 
+#ifdef USE_MEMORY_POOL
+
+#include "MemoryPool/src/MemoryPool.h"
+
+#endif
 
 namespace Antares {
 
 #define THREAD_POOL_VERSION "v1.0.0"
 
     using concurrency_t = decltype(std::thread::hardware_concurrency());
+#ifdef USE_MEMORY_POOL
 
+    struct ThreadPoolDefaultTraits {
+        static inline void *malloc(size_t size) {
+            return MemoryPool::Malloc(size);
+        }
+
+        static inline void free(void *ptr) {
+            MemoryPool::Free(ptr);
+        }
+    };
+
+#else
     struct ThreadPoolDefaultTraits {
         static inline void *malloc(size_t size) {
             return ::malloc(size);
@@ -28,6 +45,7 @@ namespace Antares {
             ::free(ptr);
         }
     };
+#endif
 
     class ThreadPoolBase {
     protected:
