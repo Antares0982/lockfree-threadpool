@@ -10,6 +10,8 @@
 #include <future>
 #include <functional>
 #include "LockfreeQueue.h"
+#include "Allocator.h"
+
 
 namespace Antares {
 
@@ -108,45 +110,16 @@ namespace Antares {
         [[nodiscard]] concurrency_t determine_thread_count(concurrency_t thread_count_);
 
         void worker();
-
-
     };
 
     template<typename Traits = ThreadPoolDefaultTraits>
     class ThreadPool : public ThreadPoolBase {
-        template<typename T>
-        struct Allocator : public std::allocator<T> {
-            Allocator(const Allocator &) = default;
+    public:
+        template<typename R>
+        using MultiFuture = std::vector<std::future<R>, Allocator<std::future<R>, Traits>>;
 
-            Allocator() = default;
-
-            Allocator(Allocator &&) = default;
-
-            ~Allocator() = default;
-
-            [[nodiscard]] T *allocate(size_t n
-#if __cplusplus <= 201703L
-                    const void* hint = nullptr
-#endif
-            ) {
-                auto result = (T *) Traits::malloc(n * sizeof(T));;
-                if (!result)std::__throw_bad_array_new_length();
-                return result;
-            }
-
-#if __cplusplus >= 202106L
-            std::allocation_result<T*, std::size_t> allocate_at_least( std::size_t n ){
-            auto result = allocate(n);
-            return {result, n};
-        }
-#endif
-
-            void deallocate(T *p, std::size_t n) {
-                Traits::free(p);
-            }
-        };
-
-        std::vector<std::thread, Allocator<std::thread>> threads;
+    private:
+        std::vector<std::thread, Allocator<std::thread, Traits>> threads;
 
     public:
         ThreadPool(concurrency_t thread_count_ = 0)
@@ -224,16 +197,12 @@ namespace Antares {
             push_loop(0, index_after_last, std::forward<F>(loop), num_blocks);
         }
 
-        template<typename R>
-        using MultiFuture = std::vector<std::future<R>, Allocator<std::future<R>>>;
-
         template<typename F, typename T1, typename T2, typename T = std::common_type_t<T1, T2>, typename R = std::invoke_result_t<std::decay_t<F>, T, T>>
         [[nodiscard]] MultiFuture<R>
         parallelize_loop(const T1 first_index, const T2 index_after_last, F &&loop, const size_t num_blocks = 0) {
             blocks blks(first_index, index_after_last, num_blocks ? num_blocks : threads.size());
             if (blks.get_total_size() > 0) {
                 MultiFuture <R> mf(blks.get_num_blocks());
-                // const std::scoped_lock tasks_lock(tasks_mutex);
                 for (size_t i = 0; i < blks.get_num_blocks(); ++i)
                     mf[i] = submit(std::forward<F>(loop), blks.start(i), blks.end(i));
                 return mf;
