@@ -49,24 +49,6 @@ namespace Antares {
 
     class ThreadPoolBase {
     protected:
-//        struct PoolWorker {
-//            ThreadPoolBase &pool;
-//            std::mutex cv_mtx;
-//            // std::condition_variable task_cv;
-//
-//            PoolWorker(ThreadPoolBase &inPool) : pool(inPool) {}
-//
-//            PoolWorker(const PoolWorker &) = delete;
-//
-//            PoolWorker(PoolWorker &&) = delete;
-//
-//            PoolWorker &operator=(const PoolWorker &) = delete;
-//
-//            PoolWorker &operator=(PoolWorker &&) = delete;
-//
-//            void worker();
-//        };
-
         template<typename T1, typename T2, typename T = std::common_type_t<T1, T2>>
         class [[nodiscard]] blocks {
         public:
@@ -135,7 +117,6 @@ namespace Antares {
 
         /// may not be accurate!
         [[nodiscard]] size_t get_tasks_running() const {
-            // const std::scoped_lock tasks_lock(tasks_mutex);
             return get_tasks_total() - tasks.size();
         }
 
@@ -157,7 +138,6 @@ namespace Antares {
 
     private:
         std::vector<std::thread, Allocator<std::thread, Traits>> threads;
-        // std::vector<std::unique_ptr<PoolWorker>, Allocator<std::unique_ptr<PoolWorker>, Traits>> workers;
 
     public:
         ThreadPool(concurrency_t thread_count_ = 0)
@@ -190,14 +170,6 @@ namespace Antares {
 
             tasks.push(std::move(task_function));
             ++tasks_total;
-//            for (size_t i = 0; i < threads.size(); ++i) {
-//                auto w = workers[i].get();
-//                if (w->cv_mtx.try_lock()) {
-//                    w->task_cv.notify_one();
-//                    w->cv_mtx.unlock();
-//                    return;
-//                }
-//            }
             task_available_cv.notify_one();
         }
 
@@ -273,17 +245,12 @@ namespace Antares {
             destroy_threads();
             auto thread_count = determine_thread_count(thread_count_);
             threads.resize(thread_count);
-//            workers.reserve(thread_count);
-//            int remainSize = std::max(0, int(thread_count) - int(workers.size()));
-//            for (int i = 0; i < remainSize; ++i) workers.emplace_back(std::make_unique<PoolWorker>(*this));
             paused = was_paused;
             create_threads();
         }
 
     private:
         void create_threads() {
-//            workers.reserve(threads.size());
-//            while (workers.size() < threads.size()) { workers.emplace_back(std::make_unique<PoolWorker>(*this)); }
             running = true;
             for (concurrency_t i = 0; i < threads.size(); ++i) {
                 threads[i] = std::thread(&ThreadPool::worker, this);
@@ -291,14 +258,11 @@ namespace Antares {
         }
 
         void destroy_threads() {
-            //
-            // for (auto &w: workers) { w->cv_mtx.lock(); }
             running = false;
             task_available_cv.notify_all();
             for (concurrency_t i = 0; i < threads.size(); ++i) {
                 threads[i].join();
             }
-            // for (auto &w: workers) { w->cv_mtx.unlock(); }
         }
     };
 }

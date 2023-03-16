@@ -60,28 +60,6 @@ inline void platform_get_thread_name(decltype(platform_thread_self()) id, char *
 #endif
 
 namespace Antares {
-//    void ThreadPoolBase::PoolWorker::worker() {
-//        platform_set_thread_name(platform_thread_self(), "Worker");
-//        std::unique_lock<std::mutex> tasks_lock(cv_mtx);
-//        while (pool.running.load(std::memory_order_relaxed)) {
-//            std::function<void()> task;
-//            while (pool.tasks_total == 0 && pool.running) {
-//                pool.task_available_cv.wait_for(tasks_lock, std::chrono::milliseconds(100));
-//            }
-//
-//            while (!pool.paused && pool.tasks_total > 0) {
-//                auto popResult = pool.tasks.pop(task);
-//                if (!popResult) continue;
-//                task();
-//                --pool.tasks_total;
-//                if (pool.waiting) {
-//                    std::lock_guard _lk(pool.task_done_mtx);
-//                    pool.task_done_cv.notify_one();
-//                }
-//            }
-//        }
-//    }
-
     void ThreadPoolBase::worker() {
         platform_set_thread_name(platform_thread_self(), "Worker");
         std::mutex cv_mtx;
