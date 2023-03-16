@@ -276,6 +276,21 @@ void check_reset() {
     dual_println(
             "Checking that after a second reset() the manually counted number of unique thread IDs is equal to the reported number of threads...");
     check(pool.get_thread_count(), count_unique_threads());
+
+    // https://github.com/bshoshany/thread-pool/issues/100
+    dual_println(
+            "Checking that after many reset() calls the pool does not dead lock...");
+    for (int i = 0; i < 100; ++i) {
+        pool.pause();
+        for (int j = 0; j < 32; ++j) {
+            pool.push_task([]() {return 0; });
+        }
+        pool.unpause();
+        for (int j = 0; j < 32; ++j) {
+            pool.reset();
+        }
+        pool.wait_for_tasks();
+    }
 }
 
 // =======================================
@@ -1035,7 +1050,7 @@ void check_performance() {
                                                 thread_count * 4};
 
     // How many times to repeat each run of the test in order to collect reliable statistics.
-    constexpr size_t repeat = 20;
+    constexpr size_t repeat = 50;
     dual_println("Each test will be repeated ", repeat, " times to collect reliable statistics.");
 
     // The target execution time, in milliseconds, of the multi-threaded test with the number of blocks equal to the number of threads. The total time spent on that test will be approximately equal to repeat * target_ms.
@@ -1058,6 +1073,7 @@ void check_performance() {
         num_vectors *= 2;
         vector_size *= 2;
         vectors = std::vector<std::vector<double>>(num_vectors, std::vector<double>(vector_size));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
         tmr.start();
         pool.push_loop(num_vectors, loop);
         pool.wait_for_tasks();
@@ -1078,6 +1094,8 @@ void check_performance() {
     dual_println("Generating ", num_vectors, " vectors with ", vector_size, " elements each:");
     for (Antares::concurrency_t n: try_tasks) {
         for (size_t r = 0; r < repeat; ++r) {
+            // let the pool rest for a while before starting the next test
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
             tmr.start();
             if (n > 1) {
                 pool.push_loop(num_vectors, loop, n);

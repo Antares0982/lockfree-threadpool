@@ -60,22 +60,47 @@ inline void platform_get_thread_name(decltype(platform_thread_self()) id, char *
 #endif
 
 namespace Antares {
+//    void ThreadPoolBase::PoolWorker::worker() {
+//        platform_set_thread_name(platform_thread_self(), "Worker");
+//        std::unique_lock<std::mutex> tasks_lock(cv_mtx);
+//        while (pool.running.load(std::memory_order_relaxed)) {
+//            std::function<void()> task;
+//            while (pool.tasks_total == 0 && pool.running) {
+//                pool.task_available_cv.wait_for(tasks_lock, std::chrono::milliseconds(100));
+//            }
+//
+//            while (!pool.paused && pool.tasks_total > 0) {
+//                auto popResult = pool.tasks.pop(task);
+//                if (!popResult) continue;
+//                task();
+//                --pool.tasks_total;
+//                if (pool.waiting) {
+//                    std::lock_guard _lk(pool.task_done_mtx);
+//                    pool.task_done_cv.notify_one();
+//                }
+//            }
+//        }
+//    }
 
     void ThreadPoolBase::worker() {
         platform_set_thread_name(platform_thread_self(), "Worker");
-        std::mutex t_mtx;
-        while (running) {
+        std::mutex cv_mtx;
+        std::unique_lock<std::mutex> tasks_lock(cv_mtx);
+        while (running.load(std::memory_order_relaxed)) {
             std::function<void()> task;
-            std::unique_lock<std::mutex> tasks_lock(t_mtx);
-            task_available_cv.wait(tasks_lock, [this] { return !tasks.empty() || !running; });
-            tasks_lock.unlock();
-            if (!paused) {
-                auto popresult = tasks.pop(task);
-                if (!popresult) continue;
+            while (tasks_total == 0 && running) {
+                task_available_cv.wait_for(tasks_lock, std::chrono::milliseconds(100));
+            }
+
+            while (!paused && tasks_total > 0) {
+                auto popResult = tasks.pop(task);
+                if (!popResult) continue;
                 task();
                 --tasks_total;
-                if (waiting)
+                if (waiting) {
+                    std::lock_guard _lk(task_done_mtx);
                     task_done_cv.notify_one();
+                }
             }
         }
     }
@@ -94,10 +119,14 @@ namespace Antares {
     }
 
     void ThreadPoolBase::wait_for_tasks() {
+        std::mutex unused_mtx;
         waiting = true;
-        static std::mutex unused_mtx;
-        std::unique_lock<std::mutex> tasks_lock(unused_mtx);
-        task_done_cv.wait(tasks_lock, [this] { return (tasks_total == (paused ? tasks.size() : 0)); });
+        {
+            // the notify_one() will only be called before this lock or after wait() happens
+            std::unique_lock<std::mutex> tasks_lock(unused_mtx);
+            task_done_cv.wait(tasks_lock,
+                              [this] { return (tasks_total == (paused ? tasks.size() : 0)); });
+        }
         waiting = false;
     }
 

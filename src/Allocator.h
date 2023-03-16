@@ -2,8 +2,6 @@
 // Created by antares on 3/15/23.
 //
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "HidingNonVirtualFunction"
 #ifndef LOCKFREE_THREADPOOL_ALLOCATOR_H
 #define LOCKFREE_THREADPOOL_ALLOCATOR_H
 
@@ -43,5 +41,3 @@ namespace Antares {
     };
 }
 #endif //LOCKFREE_THREADPOOL_ALLOCATOR_H
-
-#pragma clang diagnostic pop
