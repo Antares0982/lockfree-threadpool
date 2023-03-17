@@ -47,14 +47,22 @@ namespace Antares {
     };
 #endif
 
+
     class ThreadPoolBase {
     protected:
         template<typename T1, typename T2, typename T = std::common_type_t<T1, T2>>
         class [[nodiscard]] blocks {
+            size_t block_size = 0;
+            size_t num_blocks = 0;
+            size_t total_size = 0;
+            T first_index = 0;
+            T index_after_last = 0;
+
         public:
-            blocks(const T1 first_index_, const T2 index_after_last_, const size_t num_blocks_) : first_index(
-                    static_cast<T>(first_index_)), index_after_last(static_cast<T>(index_after_last_)), num_blocks(
-                    num_blocks_) {
+            blocks(const T1 first_index_, const T2 index_after_last_, const size_t num_blocks_)
+                    : num_blocks(num_blocks_),
+                      first_index(static_cast<T>(first_index_)),
+                      index_after_last(static_cast<T>(index_after_last_)) {
                 if (index_after_last < first_index)
                     std::swap(index_after_last, first_index);
                 total_size = static_cast<size_t>(index_after_last - first_index);
@@ -81,23 +89,17 @@ namespace Antares {
                 return total_size;
             }
 
-        private:
-            size_t block_size = 0;
-            T first_index = 0;
-            T index_after_last = 0;
-            size_t num_blocks = 0;
-            size_t total_size = 0;
+
         };
 
     protected:
+        LockfreeQueue tasks; // this class implements its own traits
+        std::condition_variable_any task_available_cv = {};
+        std::condition_variable_any task_done_cv = {};
         std::atomic<size_t> tasks_total = 0;
-        std::condition_variable task_available_cv = {};
         std::atomic<bool> running = false;
         std::atomic<bool> waiting = false;
-        std::mutex task_done_mtx{};
-        std::condition_variable task_done_cv = {};
         std::atomic<bool> paused = false;
-        LockfreeQueue tasks; // this class implements its own traits
 
     public:
         ThreadPoolBase();
@@ -136,7 +138,7 @@ namespace Antares {
         template<typename R>
         using MultiFuture = std::vector<std::future<R>, Allocator<std::future<R>, Traits>>;
 
-    private:
+    protected:
         std::vector<std::thread, Allocator<std::thread, Traits>> threads;
 
     public:
@@ -169,7 +171,7 @@ namespace Antares {
             std::function<void()> task_function = std::bind(std::forward<F>(task), std::forward<A>(args)...);
 
             tasks.push(std::move(task_function));
-            ++tasks_total;
+            tasks_total.fetch_add(1, std::memory_order_acq_rel);
             task_available_cv.notify_one();
         }
 
@@ -239,13 +241,12 @@ namespace Antares {
         }
 
         void reset(concurrency_t thread_count_ = 0) {
-            const bool was_paused = paused;
-            paused = true;
+            bool was_paused = paused.exchange(true);
             wait_for_tasks();
             destroy_threads();
             auto thread_count = determine_thread_count(thread_count_);
             threads.resize(thread_count);
-            paused = was_paused;
+            paused.exchange(was_paused);
             create_threads();
         }
 

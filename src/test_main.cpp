@@ -1073,7 +1073,7 @@ void check_performance() {
         num_vectors *= 2;
         vector_size *= 2;
         vectors = std::vector<std::vector<double>>(num_vectors, std::vector<double>(vector_size));
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        // std::this_thread::sleep_for(std::chrono::milliseconds(100));
         tmr.start();
         pool.push_loop(num_vectors, loop);
         pool.wait_for_tasks();
@@ -1095,7 +1095,7 @@ void check_performance() {
     for (Antares::concurrency_t n: try_tasks) {
         for (size_t r = 0; r < repeat; ++r) {
             // let the pool rest for a while before starting the next test
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            // std::this_thread::sleep_for(std::chrono::milliseconds(500));
             tmr.start();
             if (n > 1) {
                 pool.push_loop(num_vectors, loop, n);

@@ -56,29 +56,49 @@ inline void platform_get_thread_name(decltype(platform_thread_self()) id, char *
     pthread_getname_np(id, buf, bufsize);
 }
 
+#else
+constexpr int platform_thread_self() {
+    return 0;
+}
+
+constexpr void platform_set_thread_name(int id, const char *name) {
+
+}
+
+constexpr void platform_get_thread_name(int id, char *buf, size_t bufsize) {
+
+}
+
 #endif
 #endif
 
 namespace Antares {
+    namespace details {
+        struct NoLock {
+            void lock() {}
+
+            void unlock() {}
+        };
+    }
+
+    constexpr auto order_relaxed = std::memory_order_relaxed;
+
     void ThreadPoolBase::worker() {
         platform_set_thread_name(platform_thread_self(), "Worker");
-        std::mutex cv_mtx;
-        std::unique_lock<std::mutex> tasks_lock(cv_mtx);
-        while (running.load(std::memory_order_relaxed)) {
+        details::NoLock tasks_lock;
+        while (running.load(order_relaxed)) {
             std::function<void()> task;
-            while (tasks_total == 0 && running) {
+            while (tasks_total.load(order_relaxed) == 0 && running.load(order_relaxed)) {
                 task_available_cv.wait_for(tasks_lock, std::chrono::milliseconds(100));
             }
 
-            while (!paused && tasks_total > 0) {
+            while (!paused.load(order_relaxed) && tasks_total.load(order_relaxed) > 0) {
                 auto popResult = tasks.pop(task);
                 if (!popResult) continue;
                 task();
-                --tasks_total;
-                if (waiting) {
-                    std::lock_guard _lk(task_done_mtx);
+                tasks_total.fetch_sub(1, std::memory_order_release);
+                if (waiting.load(order_relaxed))
                     task_done_cv.notify_one();
-                }
             }
         }
     }
@@ -97,14 +117,12 @@ namespace Antares {
     }
 
     void ThreadPoolBase::wait_for_tasks() {
-        std::mutex unused_mtx;
+        details::NoLock tasks_lock;
         waiting = true;
-        {
-            // the notify_one() will only be called before this lock or after wait() happens
-            std::unique_lock<std::mutex> tasks_lock(unused_mtx);
-            task_done_cv.wait(tasks_lock,
-                              [this] { return (tasks_total == (paused ? tasks.size() : 0)); });
-        }
+
+        while ((tasks_total.load(order_relaxed) != (paused.load(order_relaxed) ? tasks.size() : 0)))
+            task_done_cv.wait_for(tasks_lock, std::chrono::milliseconds(100));
+
         waiting = false;
     }
 
@@ -113,11 +131,11 @@ namespace Antares {
     }
 
     size_t ThreadPoolBase::get_tasks_total() const {
-        return tasks_total;
+        return tasks_total.load(order_relaxed);
     }
 
     bool ThreadPoolBase::is_paused() const {
-        return paused;
+        return paused.load(order_relaxed);
     }
 
     void ThreadPoolBase::unpause() {
