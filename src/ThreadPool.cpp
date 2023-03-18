@@ -85,7 +85,14 @@ namespace Antares {
 
     void ThreadPoolBase::worker() {
         platform_set_thread_name(platform_thread_self(), "Worker");
-        details::NoLock tasks_lock;
+        // We use std::unique_lock<std::mutex> here to save time. Reason:
+        // Actually we can use a self-defined "no-lock" lock type `nolock`, and use `std::condition_variable_any`,
+        // but `std::condition_variable_any::wait()` still calls `std::condition_variable::wait()` internally.
+        // Also, it creates a `std::shared_ptr<std::mutex>`, and lock the mutex to safely call `nolock::unlock()`.
+        // These behaviors greatly impacts the performance in practice.
+        // If we use mutex here directly instead of `std::condition_variable_any`, we can reduce some useless calls.
+        std::mutex mtx;
+        std::unique_lock<std::mutex> tasks_lock(mtx);
         while (running.load(order_relaxed)) {
             std::function<void()> task;
             while (tasks_total.load(order_relaxed) == 0 && running.load(order_relaxed)) {
@@ -117,12 +124,11 @@ namespace Antares {
     }
 
     void ThreadPoolBase::wait_for_tasks() {
-        details::NoLock tasks_lock;
+        std::mutex useless_mutex;
+        std::unique_lock<std::mutex> tasks_lock(useless_mutex);
         waiting = true;
-
         while ((tasks_total.load(order_relaxed) != (paused.load(order_relaxed) ? tasks.size() : 0)))
             task_done_cv.wait_for(tasks_lock, std::chrono::milliseconds(100));
-
         waiting = false;
     }
 

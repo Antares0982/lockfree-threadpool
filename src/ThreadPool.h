@@ -94,8 +94,8 @@ namespace Antares {
 
     protected:
         LockfreeQueue tasks; // this class implements its own traits
-        std::condition_variable_any task_available_cv = {};
-        std::condition_variable_any task_done_cv = {};
+        std::condition_variable task_available_cv = {};
+        std::condition_variable task_done_cv = {};
         std::atomic<size_t> tasks_total = 0;
         std::atomic<bool> running = false;
         std::atomic<bool> waiting = false;
