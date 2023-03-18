@@ -73,7 +73,6 @@ constexpr void platform_get_thread_name(int id, char *buf, size_t bufsize) {
 #endif
 
 namespace Antares {
-
     constexpr auto order_relaxed = std::memory_order_relaxed;
 
     void ThreadPoolBase::worker() {
@@ -88,11 +87,11 @@ namespace Antares {
         std::unique_lock<std::mutex> tasks_lock(mtx);
         while (running.load(order_relaxed)) {
             std::function<void()> task;
-            while (tasks_total.load(order_relaxed) == 0 && running.load(order_relaxed)) {
+            while (get_tasks_total() == 0 && running.load(order_relaxed)) {
                 task_available_cv.wait_for(tasks_lock, std::chrono::milliseconds(100));
             }
 
-            while (!paused.load(order_relaxed) && tasks_total.load(order_relaxed) > 0) {
+            while (!is_paused() && get_tasks_total() > 0) {
                 auto popResult = tasks.pop(task);
                 if (!popResult) continue;
                 task();
@@ -105,7 +104,7 @@ namespace Antares {
 
     ThreadPoolBase::ThreadPoolBase() {}
 
-    concurrency_t ThreadPoolBase::determine_thread_count(const concurrency_t thread_count_) {
+    concurrency_t ThreadPoolBase::determine_thread_count(concurrency_t thread_count_) {
         if (thread_count_ > 0)
             return thread_count_;
         else {
@@ -120,8 +119,11 @@ namespace Antares {
         std::mutex useless_mutex;
         std::unique_lock<std::mutex> tasks_lock(useless_mutex);
         waiting = true;
-        while ((tasks_total.load(order_relaxed) != (paused.load(order_relaxed) ? tasks.size() : 0)))
-            task_done_cv.wait_for(tasks_lock, std::chrono::milliseconds(100));
+        while ((get_tasks_total() != (is_paused() ? tasks.size() : 0))) {
+            // if you require a faster way to know the tasks are over, you should implement it in your tasks,
+            // instead of calling this stupid function to help you.
+            task_done_cv.wait_for(tasks_lock, std::chrono::milliseconds(10));
+        }
         waiting = false;
     }
 

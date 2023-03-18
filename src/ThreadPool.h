@@ -88,8 +88,6 @@ namespace Antares {
             [[nodiscard]] size_t get_total_size() const {
                 return total_size;
             }
-
-
         };
 
     protected:
@@ -106,6 +104,7 @@ namespace Antares {
 
         ~ThreadPoolBase() = default;
 
+        /// a bad design, should avoid calling this
         void wait_for_tasks();
 
         void pause();
@@ -169,7 +168,6 @@ namespace Antares {
         template<typename F, typename... A>
         void push_task(F &&task, A &&...args) {
             std::function<void()> task_function = std::bind(std::forward<F>(task), std::forward<A>(args)...);
-
             tasks.push(std::move(task_function));
             tasks_total.fetch_add(1, std::memory_order_acq_rel);
             task_available_cv.notify_one();
