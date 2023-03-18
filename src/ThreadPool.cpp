@@ -73,13 +73,6 @@ constexpr void platform_get_thread_name(int id, char *buf, size_t bufsize) {
 #endif
 
 namespace Antares {
-    namespace details {
-        struct NoLock {
-            void lock() {}
-
-            void unlock() {}
-        };
-    }
 
     constexpr auto order_relaxed = std::memory_order_relaxed;
 
