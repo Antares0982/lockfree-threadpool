@@ -8,8 +8,7 @@
 #include <atomic>
 #include <functional>
 
-namespace Antares{
-
+namespace Antares {
     class LockfreeQueue {
         void *queueWrappingPointer;
         std::atomic<size_t> _counter;
@@ -32,7 +31,6 @@ namespace Antares{
 
         [[nodiscard]] bool empty() const { return size() == 0; }
     };
-
 }
 
 #endif //TESTPROJECT_LOCKFREEQUEUE_H

@@ -102,7 +102,7 @@ namespace Antares {
         }
     }
 
-    ThreadPoolBase::ThreadPoolBase() {}
+    ThreadPoolBase::ThreadPoolBase() = default;
 
     concurrency_t ThreadPoolBase::determine_thread_count(concurrency_t thread_count_) {
         if (thread_count_ > 0)

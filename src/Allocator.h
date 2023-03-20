@@ -7,7 +7,7 @@
 
 #include <memory>
 
-namespace Antares {
+namespace Antares::details {
     template<typename T, typename MemoryTraits>
     struct Allocator : public std::allocator<T> {
         Allocator(const Allocator &) = default;

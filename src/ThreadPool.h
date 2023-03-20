@@ -126,13 +126,16 @@ namespace Antares {
         void unpause();
 
     protected:
-        [[nodiscard]] concurrency_t determine_thread_count(concurrency_t thread_count_);
+        [[nodiscard]] static concurrency_t determine_thread_count(concurrency_t thread_count_);
 
         void worker();
     };
 
     template<typename Traits = ThreadPoolDefaultTraits>
     class ThreadPool : public ThreadPoolBase {
+        template<typename T, typename T2>
+        using Allocator = details::Allocator<T, T2>;
+
     public:
         template<typename R>
         using MultiFuture = std::vector<std::future<R>, Allocator<std::future<R>, Traits>>;
@@ -141,7 +144,7 @@ namespace Antares {
         std::vector<std::thread, Allocator<std::thread, Traits>> threads;
 
     public:
-        ThreadPool(concurrency_t thread_count_ = 0)
+        ThreadPool(concurrency_t thread_count_ = 0) // NOLINT(google-explicit-constructor)
                 : ThreadPoolBase(),
                   threads(determine_thread_count(thread_count_)) {
             create_threads();
@@ -200,7 +203,7 @@ namespace Antares {
             return future;
         }
 
-        template<typename F, typename T1, typename T2, typename T = std::common_type_t<T1, T2>>
+        template<typename F, typename T1, typename T2, typename = std::common_type_t<T1, T2>>
         void push_loop(const T1 first_index, const T2 index_after_last, F &&loop, const size_t num_blocks = 0) {
             blocks blks(first_index, index_after_last, num_blocks ? num_blocks : threads.size());
             if (blks.get_total_size() > 0) {
