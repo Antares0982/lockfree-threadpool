@@ -8,6 +8,8 @@
  * @brief BS::thread_pool: a fast, lightweight, and easy-to-use C++17 thread pool library. This program tests all aspects of the library, but is not needed in order to use the library.
  */
 
+#ifdef TEST_THREADPOOL_MAIN
+
 // Get rid of annoying MSVC warning.
 #ifdef _MSC_VER
 #define _CRT_SECURE_NO_WARNINGS
@@ -1154,3 +1156,5 @@ int main() {
         return EXIT_FAILURE;
     }
 }
+
+#endif

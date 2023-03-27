@@ -22,6 +22,8 @@ if (NOT WIN32)
     target_compile_options(common INTERFACE -pthread)
     target_link_libraries(common INTERFACE pthread)
 endif ()
+
+target_compile_definitions(common INTERFACE TEST_THREADPOOL_MAIN)
 ############################################################################
 set(BUILD_TARGET lockfree_threadpool)
 add_executable(${BUILD_TARGET} ${testpath})
