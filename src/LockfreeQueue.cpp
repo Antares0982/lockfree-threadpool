@@ -5,26 +5,10 @@
 #include "LockfreeQueue.h"
 #include "thirdparty/concurrentqueue.h"
 
-#ifdef USE_MEMORY_POOL
-
-#include "MemoryPool/src/MemoryPool.h"
-
-#endif
 
 namespace Antares {
 /// modify this to change the default behavior
     struct LockfreeQueueDefaultTraits : moodycamel::ConcurrentQueueDefaultTraits {
-#ifdef USE_MEMORY_POOL
-
-        static inline void *malloc(size_t size) {
-            return MemoryPool::Malloc(size);
-        }
-
-        static inline void free(void *ptr) {
-            MemoryPool::Free(ptr);
-        }
-
-#endif
     };
 
     using QueueType = moodycamel::ConcurrentQueue<std::function<void()>, LockfreeQueueDefaultTraits>;

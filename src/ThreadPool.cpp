@@ -38,9 +38,7 @@ inline void platform_get_thread_name(void *platform_thread_self, char *buf, size
     LocalFree(wbuf);
 }
 
-#else // HEDLEY_MSVC_VERSION
-
-#if defined(__GNUC__)
+#elif defined(__GNUC__)
 
 #include <pthread.h>
 
@@ -69,7 +67,6 @@ constexpr void platform_get_thread_name(int id, char *buf, size_t bufsize) {
 
 }
 
-#endif
 #endif
 
 namespace Antares {
